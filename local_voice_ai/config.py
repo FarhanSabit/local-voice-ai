@@ -12,6 +12,7 @@ at a remote endpoint automatically disables the local child.
 from __future__ import annotations
 
 import os
+import secrets
 from dataclasses import dataclass, field
 from typing import Optional
 from urllib.parse import urlparse
@@ -33,6 +34,14 @@ def _is_loopback(url: str) -> bool:
     return host in {"", "localhost", "127.0.0.1", "0.0.0.0", "::1"}
 
 
+def _generate_secure_secret() -> str:
+    """Generate a cryptographically secure random secret for development.
+    
+    In production, this should be overridden via LIVEKIT_API_SECRET environment variable.
+    """
+    return secrets.token_urlsafe(32)
+
+
 @dataclass
 class Config:
     # --- Web (FastAPI in the supervisor process) -------------------------
@@ -43,7 +52,7 @@ class Config:
     # --- LiveKit ---------------------------------------------------------
     livekit_url: str = "ws://127.0.0.1:7880"
     livekit_api_key: str = "devkey"
-    livekit_api_secret: str = "secret"
+    livekit_api_secret: str = field(default_factory=_generate_secure_secret)
     livekit_bind_port: int = 7880
     livekit_rtc_port: int = 7881  # WebRTC over TCP (ICE/TCP fallback)
     livekit_udp_port: int = 7882  # WebRTC over UDP (preferred media transport)
@@ -124,7 +133,7 @@ class Config:
             #
             livekit_url=livekit_url,
             livekit_api_key=os.getenv("LIVEKIT_API_KEY", cls.livekit_api_key),
-            livekit_api_secret=os.getenv("LIVEKIT_API_SECRET", cls.livekit_api_secret),
+            livekit_api_secret=os.getenv("LIVEKIT_API_SECRET", _generate_secure_secret()),
             livekit_bind_port=int(os.getenv("LIVEKIT_BIND_PORT", str(cls.livekit_bind_port))),
             livekit_rtc_port=int(os.getenv("LIVEKIT_RTC_PORT", str(cls.livekit_rtc_port))),
             livekit_udp_port=int(os.getenv("LIVEKIT_UDP_PORT", str(cls.livekit_udp_port))),
